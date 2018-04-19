@@ -1,13 +1,13 @@
 /*************************************************************************
  * libjson-rpc-cpp
  *************************************************************************
- * @file    httpclient.cpp
+ * @file    httpbasicauthclient.cpp
  * @date    02.01.2013
  * @author  Peter Spiess-Knafl <dev@spiessknafl.at>
  * @license See attached LICENSE.txt
  ************************************************************************/
 
-#include "httpclient.h"
+#include "httpbasicauthclient.h"
 #include <cstdlib>
 #include <curl/curl.h>
 #include <string.h>
@@ -45,23 +45,27 @@ static size_t writefunc(void *ptr, size_t size, size_t nmemb,
   return size * nmemb;
 }
 
+HttpBasicAuthClient::HttpBasicAuthClient(const std::string &url, 
+		const std::string& username, const std::string& password) : url(url), username(username), password(password) {
+  this->timeout = 10000;
+  curl = curl_easy_init();
+}
+
+HttpBasicAuthClient::~HttpBasicAuthClient() { curl_easy_cleanup(curl); }
+
 static void init_string(struct string *s) {
   s->len = 0;
   s->ptr = static_cast<char *>(malloc(s->len + 1));
   s->ptr[0] = '\0';
 }
 
-HttpClient::HttpClient(const std::string &url) : url(url) {
-  this->timeout = 10000;
-  curl = curl_easy_init();
-}
-
-HttpClient::~HttpClient() { curl_easy_cleanup(curl); }
-
-void HttpClient::SendRPCMessage(const std::string &message,
+void HttpBasicAuthClient::SendRPCMessage(const std::string &message,
                                 std::string &result) {
+  std::string userpwd = username + ":" + password;
   curl_easy_setopt(curl, CURLOPT_URL, this->url.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
+  curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+  curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd.c_str());
 
   CURLcode res;
 
@@ -109,14 +113,14 @@ void HttpClient::SendRPCMessage(const std::string &message,
   }
 }
 
-void HttpClient::SetUrl(const std::string &url) { this->url = url; }
+void HttpBasicAuthClient::SetUrl(const std::string &url) { this->url = url; }
 
-void HttpClient::SetTimeout(long timeout) { this->timeout = timeout; }
+void HttpBasicAuthClient::SetTimeout(long timeout) { this->timeout = timeout; }
 
-void HttpClient::AddHeader(const std::string &attr, const std::string &val) {
+void HttpBasicAuthClient::AddHeader(const std::string &attr, const std::string &val) {
   this->headers[attr] = val;
 }
 
-void HttpClient::RemoveHeader(const std::string &attr) {
+void HttpBasicAuthClient::RemoveHeader(const std::string &attr) {
   this->headers.erase(attr);
 }
